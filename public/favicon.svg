@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" width="200" height="40">
+  <text x="10" y="28" font-family="Arial, sans-serif" font-size="24" font-weight="normal" fill="none" stroke="none">
+    <tspan fill="#d93132">s</tspan>
+    <tspan fill="#f5af02">o</tspan>
+    <tspan fill="#3665f3">n</tspan>
+    <tspan fill="#d93132">e</tspan>
+    <tspan fill="#f5af02">s</tspan>
+    <tspan fill="#69b425">o</tspan>
+    <tspan fill="#d93132">e</tspan>
+    <tspan fill="#3665f3">b</tspan>
+    <tspan fill="#3665f3">i</tspan>
+    <tspan fill="#3665f3">d</tspan>
+  </text>
+  <text x="180" y="12" font-family="Arial, sans-serif" font-size="8" fill="#666">™</text>
+</svg>
