@@ -30,7 +30,9 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 30000); // Check for new notifications every 30s
+      const interval = setInterval(fetchNotifications, 15000); // Check for new notifications every 15s
+      const onFocus = () => fetchNotifications();
+      window.addEventListener('focus', onFocus);
       return () => clearInterval(interval);
     } else {
       setNotifications([]);

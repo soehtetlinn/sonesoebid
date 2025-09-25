@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { User, Review } from '../types';
 import { api } from '../services/api';
 import Spinner from '../components/Spinner';
@@ -11,6 +11,7 @@ const UserProfilePage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [formData, setFormData] = useState({ 
     username: '', 
     email: '',
@@ -25,6 +26,7 @@ const UserProfilePage: React.FC = () => {
     address_country: '',
   });
   const { user: currentUser, login } = useAuth();
+  const navigate = useNavigate();
   
   const isOwnProfile = currentUser?.id === parseInt(userId || '0', 10);
 
@@ -57,18 +59,40 @@ const UserProfilePage: React.FC = () => {
   
   const handleEditToggle = () => {
       if (user) {
-          setFormData({ username: user.username, email: user.email });
           setIsEditing(!isEditing);
       }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFormData({ ...formData, [e.target.name]: e.target.value });
+      const { name, value } = e.target;
+      const next = { ...formData, [name]: value } as typeof formData;
+      setFormData(next);
+      const fieldErrors = validate(next);
+      setErrors(fieldErrors);
+  };
+
+  const validate = (values: typeof formData): { [key: string]: string } => {
+      const es: { [key: string]: string } = {};
+      if (!values.username || values.username.trim().length < 2) es.username = 'Username is required';
+      const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!values.email || !emailRe.test(values.email)) es.email = 'Enter a valid email';
+      if (values.phone) {
+        const phoneRe = /^[+()\-\s\d]{7,20}$/;
+        if (!phoneRe.test(values.phone)) es.phone = 'Enter a valid phone';
+      }
+      if (values.address_postalCode) {
+        const pcRe = /^[A-Za-z0-9\-\s]{3,10}$/;
+        if (!pcRe.test(values.address_postalCode)) es.address_postalCode = 'Invalid postal code';
+      }
+      return es;
   };
   
   const handleFormSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!user) return;
+      const es = validate(formData);
+      setErrors(es);
+      if (Object.keys(es).length > 0) return;
       const updatedUser = await api.updateUserProfile(user.id, {
         username: formData.username,
         email: formData.email,
@@ -140,20 +164,35 @@ const UserProfilePage: React.FC = () => {
               </div>
             </div>
         </div>
-        {isOwnProfile && !isEditing && (
+        <div className="space-x-2">
+          {currentUser && !isOwnProfile && (
+            <button
+              onClick={async () => {
+                const convo = await api.sendMessage(null, currentUser.id, `Hi ${user.username}!`, user.id, null);
+                navigate(`/dashboard/messages/${convo.id}`);
+              }}
+              className="px-4 py-2 bg-brand-blue text-white rounded-md font-semibold hover:bg-blue-700"
+            >
+              Message
+            </button>
+          )}
+          {isOwnProfile && !isEditing && (
             <button onClick={handleEditToggle} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-md font-semibold hover:bg-gray-300 dark:hover:bg-gray-500">Edit Profile</button>
-        )}
+          )}
+        </div>
       </div>
       
       {isEditing && isOwnProfile ? (
         <form onSubmit={handleFormSubmit} className="space-y-4 mb-8">
             <div>
                 <label className="block font-semibold">Username</label>
-                <input type="text" name="username" value={formData.username} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+                <input type="text" name="username" value={formData.username} onChange={handleInputChange} className={`w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700 ${errors.username ? 'border-brand-red' : ''}`}/>
+                {errors.username && <p className="text-brand-red text-sm mt-1">{errors.username}</p>}
             </div>
             <div>
                 <label className="block font-semibold">Email</label>
-                <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+                <input type="email" name="email" value={formData.email} onChange={handleInputChange} className={`w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700 ${errors.email ? 'border-brand-red' : ''}`}/>
+                {errors.email && <p className="text-brand-red text-sm mt-1">{errors.email}</p>}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -167,7 +206,8 @@ const UserProfilePage: React.FC = () => {
             </div>
             <div>
               <label className="block font-semibold">Phone</label>
-              <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+              <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className={`w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700 ${errors.phone ? 'border-brand-red' : ''}`}/>
+              {errors.phone && <p className="text-brand-red text-sm mt-1">{errors.phone}</p>}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -188,7 +228,8 @@ const UserProfilePage: React.FC = () => {
               </div>
               <div>
                 <label className="block font-semibold">Postal Code</label>
-                <input type="text" name="address_postalCode" value={formData.address_postalCode} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+                <input type="text" name="address_postalCode" value={formData.address_postalCode} onChange={handleInputChange} className={`w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700 ${errors.address_postalCode ? 'border-brand-red' : ''}`}/>
+                {errors.address_postalCode && <p className="text-brand-red text-sm mt-1">{errors.address_postalCode}</p>}
               </div>
               <div>
                 <label className="block font-semibold">Country</label>
@@ -197,7 +238,7 @@ const UserProfilePage: React.FC = () => {
             </div>
             <div className="flex justify-end space-x-2">
                 <button type="button" onClick={handleEditToggle} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-md font-semibold">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-brand-blue text-white rounded-md font-semibold">Save Changes</button>
+                <button type="submit" disabled={Object.keys(errors).length > 0} className="px-4 py-2 bg-brand-blue text-white rounded-md font-semibold disabled:opacity-60">Save Changes</button>
             </div>
         </form>
       ) : (

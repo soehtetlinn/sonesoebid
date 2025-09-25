@@ -120,6 +120,7 @@ export interface Message {
   senderId: number;
   text: string;
   timestamp: string;
+  isRead?: boolean;
 }
 
 export interface Conversation {
@@ -129,6 +130,7 @@ export interface Conversation {
   lastMessage: Message;
   productId: string;
   productTitle: string;
+  typingByUserId?: number | null;
 }
 
 export enum DisputeStatus {

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
-import { Conversation, Message } from '../types';
+import { Conversation, Message, NotificationType } from '../types';
+import { useNotifications } from '../contexts/NotificationContext';
 import Spinner from '../components/Spinner';
 
 const MessagingPage: React.FC = () => {
@@ -15,7 +16,9 @@ const MessagingPage: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { notifications } = useNotifications();
   
   const selectedConversation = conversations.find(c => c.id === conversationId);
 
@@ -35,13 +38,41 @@ const MessagingPage: React.FC = () => {
   useEffect(() => {
     if (conversationId) {
       fetchMessages(conversationId);
+      if (user) api.markConversationRead(conversationId, user.id);
     }
   }, [conversationId, fetchMessages]);
   
+  // Polling for new conversations and messages (simple interval-based)
+  useEffect(() => {
+    if (!user) return;
+    if (isPolling) return;
+    setIsPolling(true);
+    const interval = setInterval(async () => {
+      const convos = await api.getConversations(user.id);
+      setConversations(convos);
+      if (conversationId) {
+        const msgs = await api.getMessages(conversationId);
+        setMessages(msgs);
+      }
+    }, 10000); // 10s
+    return () => { clearInterval(interval); setIsPolling(false); };
+  }, [user, conversationId, isPolling]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
   
+  // Typing indicator: set typing while user is entering, fetch typing state on interval
+  useEffect(() => {
+    if (!selectedConversation || !user) return;
+    const interval = setInterval(async () => {
+      const typingUserId = await api.getTyping(selectedConversation.id);
+      // update typing flag on the selected conversation
+      setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, typingByUserId: typingUserId } : c));
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [selectedConversation, user]);
+
   const handleSendMessage = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!newMessage.trim() || !selectedConversation || !user) return;
@@ -51,6 +82,14 @@ const MessagingPage: React.FC = () => {
       await api.sendMessage(selectedConversation.id, user.id, newMessage, recipientId, selectedConversation.productId);
       setNewMessage('');
       fetchMessages(selectedConversation.id); // Re-fetch messages
+      api.setTyping(selectedConversation.id, null);
+      api.markConversationRead(selectedConversation.id, user.id);
+  };
+
+  const handleTyping = (value: string) => {
+    setNewMessage(value);
+    if (!selectedConversation || !user) return;
+    api.setTyping(selectedConversation.id, value ? user.id : null);
   };
 
   return (
@@ -65,6 +104,7 @@ const MessagingPage: React.FC = () => {
             {conversations.map(convo => {
                 const otherUserId = convo.participantIds.find(id => id !== user?.id)!;
                 const otherUsername = convo.participantUsernames[otherUserId];
+                const hasUnread = notifications.some(n => n.type === NotificationType.NEW_MESSAGE && n.relatedId === convo.id && !n.isRead);
                 return (
                 <div 
                     key={convo.id}
@@ -73,7 +113,7 @@ const MessagingPage: React.FC = () => {
                 >
                     <p className="font-semibold">{otherUsername}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{convo.productTitle}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-500 truncate">{convo.lastMessage.text}</p>
+                    <p className={`text-sm truncate ${hasUnread ? 'text-brand-blue font-semibold' : 'text-gray-500 dark:text-gray-500'}`}>{convo.lastMessage.text}</p>
                 </div>
                 );
             })}
@@ -88,6 +128,9 @@ const MessagingPage: React.FC = () => {
             <div className="p-4 border-b dark:border-gray-700">
               <h2 className="font-bold text-lg">{selectedConversation.participantUsernames[selectedConversation.participantIds.find(id => id !== user?.id)!]}</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">{selectedConversation.productTitle}</p>
+              {selectedConversation.typingByUserId && selectedConversation.typingByUserId !== user?.id && (
+                <p className="text-xs text-brand-blue mt-1">Typing...</p>
+              )}
             </div>
             <div className="flex-grow p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900/50">
               {loadingMsgs ? <Spinner/> : (
@@ -106,9 +149,13 @@ const MessagingPage: React.FC = () => {
             </div>
             <div className="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800">
               <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
-                <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type a message..." className="w-full px-4 py-2 border rounded-full dark:bg-gray-700 dark:border-gray-600"/>
+                <input type="text" value={newMessage} onChange={(e) => handleTyping(e.target.value)} placeholder="Type a message..." className="w-full px-4 py-2 border rounded-full dark:bg-gray-700 dark:border-gray-600"/>
                 <button type="submit" className="px-4 py-2 bg-brand-blue text-white rounded-full font-semibold">Send</button>
               </form>
+              {/* Read receipt: if the latest message is sent by current user and isRead by recipient */}
+              {messages.length > 0 && user && messages[messages.length - 1].senderId === user.id && messages[messages.length - 1].isRead && (
+                <p className="text-xs text-gray-500 mt-2">Seen</p>
+              )}
             </div>
           </>
         ) : (

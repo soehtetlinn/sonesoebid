@@ -148,6 +148,7 @@ let MOCK_REVIEWS: Review[] = [];
 let MOCK_CART: { [userId: number]: CartItem[] } = { 1: [] };
 let MOCK_CONVERSATIONS: Conversation[] = [];
 let MOCK_MESSAGES: { [conversationId: string]: Message[] } = {};
+let MOCK_TYPING: { [conversationId: string]: number | null } = {};
 let MOCK_DISPUTES: Dispute[] = [];
 
 
@@ -544,23 +545,28 @@ export const api = {
   },
   getMessages: async (conversationId: string): Promise<Message[]> => {
       await delay(200);
-      return MOCK_MESSAGES[conversationId] || [];
+      return (MOCK_MESSAGES[conversationId] || []).map(m => ({...m}));
   },
-  sendMessage: async (conversationId: string | null, senderId: number, text: string, recipientId: number, productId: string): Promise<Conversation> => {
+  sendMessage: async (conversationId: string | null, senderId: number, text: string, recipientId: number, productId: string | null): Promise<Conversation> => {
       await delay(200);
       let convo: Conversation | undefined;
       if (conversationId) {
           convo = MOCK_CONVERSATIONS.find(c => c.id === conversationId);
       } else {
           // Find existing conversation for this product between these users
-          convo = MOCK_CONVERSATIONS.find(c => c.productId === productId && c.participantIds.includes(senderId) && c.participantIds.includes(recipientId));
+          if (productId) {
+              convo = MOCK_CONVERSATIONS.find(c => c.productId === productId && c.participantIds.includes(senderId) && c.participantIds.includes(recipientId));
+          } else {
+              const dmKey = `dm-${[senderId, recipientId].sort().join('-')}`;
+              convo = MOCK_CONVERSATIONS.find(c => c.productId === dmKey);
+          }
       }
 
       const sender = MOCK_USERS.find(u => u.id === senderId)!;
       const recipient = MOCK_USERS.find(u => u.id === recipientId)!;
-      const product = MOCK_PRODUCTS.find(p => p.id === productId)!;
+      const product = productId ? MOCK_PRODUCTS.find(p => p.id === productId) : null;
 
-      const newMessage: Message = { id: `msg-${Date.now()}`, senderId, text, timestamp: new Date().toISOString() };
+      const newMessage: Message = { id: `msg-${Date.now()}`, senderId, text, timestamp: new Date().toISOString(), isRead: false };
       
       if (convo) {
           MOCK_MESSAGES[convo.id].push(newMessage);
@@ -572,11 +578,12 @@ export const api = {
               participantIds: [senderId, recipientId],
               participantUsernames: { [senderId]: sender.username, [recipientId]: recipient.username },
               lastMessage: newMessage,
-              productId,
-              productTitle: product.title,
+              productId: product ? product.id : `dm-${[senderId, recipientId].sort().join('-')}`,
+              productTitle: product ? product.title : 'Direct message',
           };
           MOCK_CONVERSATIONS.unshift(convo);
           MOCK_MESSAGES[newConvoId] = [newMessage];
+          MOCK_TYPING[newConvoId] = null;
       }
       
       // Notify recipient
@@ -584,7 +591,7 @@ export const api = {
         id: `noti-${Date.now()}`,
         userId: recipientId,
         type: NotificationType.NEW_MESSAGE,
-        message: `You have a new message from ${sender.username} regarding "${product.title}"`,
+        message: product ? `You have a new message from ${sender.username} regarding "${product.title}"` : `You have a new direct message from ${sender.username}`,
         relatedId: convo.id,
         title: 'New Message',
         isRead: false,
@@ -592,6 +599,24 @@ export const api = {
       });
 
       return convo;
+  },
+
+  // Read receipts
+  markConversationRead: async(conversationId: string, readerId: number): Promise<void> => {
+      await delay(100);
+      const msgs = MOCK_MESSAGES[conversationId];
+      if (!msgs) return;
+      msgs.forEach(m => { if (m.senderId !== readerId) m.isRead = true; });
+  },
+
+  // Typing indicators
+  setTyping: async(conversationId: string, userId: number | null): Promise<void> => {
+      await delay(50);
+      MOCK_TYPING[conversationId] = userId;
+  },
+  getTyping: async(conversationId: string): Promise<number | null> => {
+      await delay(50);
+      return MOCK_TYPING[conversationId] ?? null;
   },
 
   // Dispute API
