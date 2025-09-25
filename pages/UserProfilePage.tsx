@@ -11,7 +11,19 @@ const UserProfilePage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ username: '', email: '' });
+  const [formData, setFormData] = useState({ 
+    username: '', 
+    email: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    address_line1: '',
+    address_line2: '',
+    address_city: '',
+    address_state: '',
+    address_postalCode: '',
+    address_country: '',
+  });
   const { user: currentUser, login } = useAuth();
   
   const isOwnProfile = currentUser?.id === parseInt(userId || '0', 10);
@@ -23,7 +35,19 @@ const UserProfilePage: React.FC = () => {
         const fetchedUser = await api.getUserProfile(parseInt(userId, 10));
         setUser(fetchedUser);
         if (fetchedUser) {
-            setFormData({ username: fetchedUser.username, email: fetchedUser.email });
+            setFormData({ 
+              username: fetchedUser.username, 
+              email: fetchedUser.email,
+              firstName: fetchedUser.firstName || '',
+              lastName: fetchedUser.lastName || '',
+              phone: fetchedUser.phone || '',
+              address_line1: fetchedUser.address?.line1 || '',
+              address_line2: fetchedUser.address?.line2 || '',
+              address_city: fetchedUser.address?.city || '',
+              address_state: fetchedUser.address?.state || '',
+              address_postalCode: fetchedUser.address?.postalCode || '',
+              address_country: fetchedUser.address?.country || '',
+            });
         }
         setLoading(false);
       }
@@ -45,7 +69,21 @@ const UserProfilePage: React.FC = () => {
   const handleFormSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!user) return;
-      const updatedUser = await api.updateUserProfile(user.id, formData);
+      const updatedUser = await api.updateUserProfile(user.id, {
+        username: formData.username,
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        address: {
+          line1: formData.address_line1,
+          line2: formData.address_line2,
+          city: formData.address_city,
+          state: formData.address_state,
+          postalCode: formData.address_postalCode,
+          country: formData.address_country,
+        },
+      });
       if (updatedUser) {
           setUser(updatedUser);
           // Re-login to update context if it's the current user
@@ -83,6 +121,23 @@ const UserProfilePage: React.FC = () => {
                   {averageRating.toFixed(1)} average rating ({user.reviews.length} reviews)
                 </span>
               </div>
+              <div className="mt-2 text-gray-700 dark:text-gray-300">
+                {(user.firstName || user.lastName) && (
+                  <p className="font-medium">{[user.firstName, user.lastName].filter(Boolean).join(' ')}</p>
+                )}
+                {user.phone && <p>Phone: {user.phone}</p>}
+                {user.address && (
+                  <p>
+                    {[
+                      user.address.line1,
+                      user.address.line2,
+                      [user.address.city, user.address.state].filter(Boolean).join(', '),
+                      user.address.postalCode,
+                      user.address.country,
+                    ].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+              </div>
             </div>
         </div>
         {isOwnProfile && !isEditing && (
@@ -99,6 +154,46 @@ const UserProfilePage: React.FC = () => {
             <div>
                 <label className="block font-semibold">Email</label>
                 <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold">First Name</label>
+                <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+              </div>
+              <div>
+                <label className="block font-semibold">Last Name</label>
+                <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+              </div>
+            </div>
+            <div>
+              <label className="block font-semibold">Phone</label>
+              <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold">Address Line 1</label>
+                <input type="text" name="address_line1" value={formData.address_line1} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+              </div>
+              <div>
+                <label className="block font-semibold">Address Line 2</label>
+                <input type="text" name="address_line2" value={formData.address_line2} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+              </div>
+              <div>
+                <label className="block font-semibold">City</label>
+                <input type="text" name="address_city" value={formData.address_city} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+              </div>
+              <div>
+                <label className="block font-semibold">State/Province</label>
+                <input type="text" name="address_state" value={formData.address_state} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+              </div>
+              <div>
+                <label className="block font-semibold">Postal Code</label>
+                <input type="text" name="address_postalCode" value={formData.address_postalCode} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+              </div>
+              <div>
+                <label className="block font-semibold">Country</label>
+                <input type="text" name="address_country" value={formData.address_country} onChange={handleInputChange} className="w-full mt-1 px-3 py-2 border dark:border-gray-600 rounded-md dark:bg-gray-700"/>
+              </div>
             </div>
             <div className="flex justify-end space-x-2">
                 <button type="button" onClick={handleEditToggle} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-md font-semibold">Cancel</button>

@@ -2,9 +2,9 @@ import { Product, User, UserRole, Bid, Notification, NotificationType, Order, Or
 
 // Mock Data
 let MOCK_USERS: User[] = [
-  { id: 1, username: 'JohnDoe', email: 'john@example.com', role: UserRole.USER, reviews: [] },
-  { id: 2, username: 'AdminUser', email: 'admin@example.com', role: UserRole.ADMIN, reviews: [] },
-  { id: 3, username: 'JaneSmith', email: 'jane@example.com', role: UserRole.USER, reviews: [] },
+  { id: 1, username: 'JohnDoe', email: 'john@example.com', role: UserRole.BIDDER, reviews: [], firstName: 'John', lastName: 'Doe', phone: '+1 555-123-4567', address: { line1: '123 Main St', city: 'New York', state: 'NY', postalCode: '10001', country: 'USA' } },
+  { id: 2, username: 'AdminUser', email: 'admin@example.com', role: UserRole.ADMIN, reviews: [], firstName: 'Ada', lastName: 'Min', phone: '+1 555-987-6543', address: { line1: '1 Admin Way', city: 'San Jose', state: 'CA', postalCode: '95112', country: 'USA' } },
+  { id: 3, username: 'JaneSmith', email: 'jane@example.com', role: UserRole.BUYER, reviews: [], firstName: 'Jane', lastName: 'Smith', phone: '+1 555-222-3333', address: { line1: '456 Market St', city: 'San Francisco', state: 'CA', postalCode: '94103', country: 'USA' } },
 ];
 
 const generateBids = (startPrice: number): Bid[] => {
@@ -200,8 +200,12 @@ export const api = {
             id: MOCK_USERS.length + 1,
             username: email === 'google@example.com' ? 'GoogleUser' : 'GitHubUser',
             email: email,
-            role: UserRole.USER,
+            role: UserRole.BUYER,
             reviews: [],
+            firstName: email === 'google@example.com' ? 'Google' : 'GitHub',
+            lastName: 'User',
+            phone: '',
+            address: {},
         };
         MOCK_USERS.push(newUser);
         user = newUser;
@@ -219,8 +223,12 @@ export const api = {
         id: MOCK_USERS.length + 1,
         username,
         email,
-        role: UserRole.USER,
+        role: UserRole.BIDDER,
         reviews: [],
+        firstName: '',
+        lastName: '',
+        phone: '',
+        address: {},
     };
     MOCK_USERS.push(newUser);
     return newUser;
@@ -321,6 +329,10 @@ export const api = {
       if (!user) return null;
       user.username = data.username ?? user.username;
       user.email = data.email ?? user.email;
+      user.firstName = data.firstName ?? user.firstName;
+      user.lastName = data.lastName ?? user.lastName;
+      user.phone = data.phone ?? user.phone;
+      user.address = { ...(user.address || {}), ...(data.address || {}) };
       return {...user};
   },
   getProductsByUserId: async (userId: number): Promise<Product[]> => {

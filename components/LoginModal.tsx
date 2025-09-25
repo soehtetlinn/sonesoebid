@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { UserRole } from '../types';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -12,6 +14,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleAuth = async (authEmail: string) => {
     setError('');
@@ -21,6 +24,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onSwitchToSign
       if (user) {
         onClose();
         setEmail('');
+        const destination = user.role === UserRole.ADMIN ? '/admin' : '/dashboard';
+        navigate(destination);
       } else {
         setError('Login failed. Please check your email and try again.');
       }

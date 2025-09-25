@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { UserRole } from '../types';
 
 interface SignUpModalProps {
   isOpen: boolean;
@@ -13,6 +15,7 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ isOpen, onClose, onSwitchToLo
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { signup, login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +27,8 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ isOpen, onClose, onSwitchToLo
         onClose();
         setUsername('');
         setEmail('');
+        const destination = result.user.role === UserRole.ADMIN ? '/admin' : '/dashboard';
+        navigate(destination);
       } else {
         setError(result.error || 'Sign up failed. Please try again.');
       }
@@ -41,6 +46,8 @@ const SignUpModal: React.FC<SignUpModalProps> = ({ isOpen, onClose, onSwitchToLo
         const user = await login(`${provider}@example.com`);
         if (user) {
             onClose();
+            const destination = user.role === UserRole.ADMIN ? '/admin' : '/dashboard';
+            navigate(destination);
         } else {
             setError('OAuth sign in failed.');
         }

@@ -1,5 +1,6 @@
 export enum UserRole {
-  USER = 'USER',
+  BIDDER = 'BIDDER',
+  BUYER = 'BUYER',
   ADMIN = 'ADMIN',
 }
 
@@ -20,6 +21,18 @@ export interface User {
   email: string;
   role: UserRole;
   reviews: Review[];
+  // Optional profile fields
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
 }
 
 export interface Bid {
